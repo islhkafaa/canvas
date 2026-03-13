@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import type { ClientEvent, Shape } from "../types/websocket";
 
 export type Tool =
   | "select"
@@ -12,43 +13,6 @@ export type Tool =
   | "pan";
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
 
-export interface BaseShape {
-  id: string;
-  x: number;
-  y: number;
-  rotation?: number;
-  scaleX?: number;
-  scaleY?: number;
-  fill?: string;
-  stroke?: string;
-  strokeWidth?: number;
-}
-
-export interface PenShape extends BaseShape {
-  type: "pen";
-  points: number[];
-}
-
-export interface RectShape extends BaseShape {
-  type: "rect";
-  width: number;
-  height: number;
-  cornerRadius?: number;
-}
-
-export interface EllipseShape extends BaseShape {
-  type: "ellipse";
-  radiusX: number;
-  radiusY: number;
-}
-
-export interface ArrowShape extends BaseShape {
-  type: "arrow";
-  points: number[];
-}
-
-export type Shape = PenShape | RectShape | EllipseShape | ArrowShape;
-
 interface CanvasState {
   tool: Tool;
   shapes: Shape[];
@@ -57,16 +21,23 @@ interface CanvasState {
   isDrawing: boolean;
   selectedShapeId: string | null;
   stageConfig: { x: number; y: number; scale: number };
+  wsSend: ((event: ClientEvent) => void) | null;
 }
 
 interface CanvasActions {
   setTool: (tool: Tool) => void;
   setConnectionStatus: (status: ConnectionStatus) => void;
   setRoomId: (id: string) => void;
+  initWs: (sendFn: (event: ClientEvent) => void) => void;
 
   addShape: (shape: Shape) => void;
   updateShape: (id: string, data: Partial<Shape>) => void;
   removeShape: (id: string) => void;
+
+  applyRemoteShapes: (shapes: Shape[]) => void;
+  applyRemoteShapeAdd: (shape: Shape) => void;
+  applyRemoteShapeUpdate: (id: string, data: Partial<Shape>) => void;
+  applyRemoteShapeDelete: (id: string) => void;
 
   setIsDrawing: (isDrawing: boolean) => void;
   setSelectedShapeId: (id: string | null) => void;
@@ -74,7 +45,7 @@ interface CanvasActions {
 }
 
 export const useCanvasStore = create<CanvasState & CanvasActions>()(
-  immer((set) => ({
+  immer((set, get) => ({
     tool: "pen",
     shapes: [],
     roomId: "default",
@@ -82,6 +53,7 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
     isDrawing: false,
     selectedShapeId: null,
     stageConfig: { x: 0, y: 0, scale: 1 },
+    wsSend: null,
 
     setTool: (tool) =>
       set((state) => {
@@ -101,12 +73,51 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         state.roomId = id;
       }),
 
-    addShape: (shape) =>
+    initWs: (sendFn) =>
       set((state) => {
-        state.shapes.push(shape);
+        state.wsSend = sendFn as any;
       }),
 
-    updateShape: (id, data) =>
+    addShape: (shape) => {
+      set((state) => {
+        state.shapes.push(shape);
+      });
+      get().wsSend?.({ type: "add_shape", shape });
+    },
+
+    updateShape: (id, data) => {
+      set((state) => {
+        const shape = state.shapes.find((s) => s.id === id);
+        if (shape) {
+          Object.assign(shape, data);
+        }
+      });
+      get().wsSend?.({ type: "update_shape", id, data });
+    },
+
+    removeShape: (id) => {
+      set((state) => {
+        state.shapes = state.shapes.filter((s) => s.id !== id);
+        if (state.selectedShapeId === id) {
+          state.selectedShapeId = null;
+        }
+      });
+      get().wsSend?.({ type: "delete_shape", id });
+    },
+
+    applyRemoteShapes: (shapes) =>
+      set((state) => {
+        state.shapes = shapes;
+      }),
+
+    applyRemoteShapeAdd: (shape) =>
+      set((state) => {
+        if (!state.shapes.find((s) => s.id === shape.id)) {
+          state.shapes.push(shape);
+        }
+      }),
+
+    applyRemoteShapeUpdate: (id, data) =>
       set((state) => {
         const shape = state.shapes.find((s) => s.id === id);
         if (shape) {
@@ -114,7 +125,7 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         }
       }),
 
-    removeShape: (id) =>
+    applyRemoteShapeDelete: (id) =>
       set((state) => {
         state.shapes = state.shapes.filter((s) => s.id !== id);
         if (state.selectedShapeId === id) {
