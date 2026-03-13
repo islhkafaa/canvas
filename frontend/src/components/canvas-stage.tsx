@@ -1,7 +1,8 @@
 import Konva from "konva";
 import { useEffect, useRef, useState } from "react";
-import { Layer, Stage, Transformer } from "react-konva";
+import { Group, Layer, Path, Stage, Text, Transformer } from "react-konva";
 import { v4 as uuidv4 } from "uuid";
+import { useCursorBroadcaster } from "../hooks/useCursorBroadcaster";
 import { useCanvasStore } from "../store/useCanvasStore";
 import { EllipseShape } from "./shapes/ellipse-shape";
 import { PenShape } from "./shapes/pen-shape";
@@ -13,10 +14,13 @@ export function CanvasStage() {
   const stageRef = useRef<Konva.Stage>(null);
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const emitCursor = useCursorBroadcaster();
 
   const {
     tool,
     shapes,
+    peers,
+    myUserId,
     isDrawing,
     selectedShapeId,
     stageConfig,
@@ -121,10 +125,14 @@ export function CanvasStage() {
   };
 
   const handlePointerMove = () => {
-    if (!isDrawing || tool === "select" || tool === "pan") return;
-
     const pos = getPointerPos();
     if (!pos) return;
+
+    if (tool !== "pan") {
+      emitCursor(pos.x, pos.y);
+    }
+
+    if (!isDrawing || tool === "select" || tool === "pan") return;
 
     const lastShape = shapes[shapes.length - 1];
     if (!lastShape) return;
@@ -291,6 +299,29 @@ export function CanvasStage() {
               anchorFill="#121217"
             />
           )}
+
+          {Object.entries(peers).map(([peerId, cursor]) => {
+            if (peerId === myUserId) return null;
+            return (
+              <Group key={peerId} x={cursor.x} y={cursor.y}>
+                <Path
+                  data="M5.65376 17.9088L2.09104 2.11542C1.72895 0.50974 3.49023 -0.627768 4.8876 0.311749L17.5147 8.80214C18.914 9.74314 18.6654 11.8906 17.078 12.4214L11.751 14.2023C11.396 14.321 11.109 14.5807 10.9658 14.9198L8.43163 20.925C7.8188 22.3789 5.82024 22.0163 5.37813 18.9472L5.65376 17.9088Z"
+                  fill={cursor.color}
+                  stroke="white"
+                  strokeWidth={1}
+                />
+                <Text
+                  text={peerId.split("-")[0]}
+                  x={12}
+                  y={20}
+                  fontSize={12}
+                  fontFamily="monospace"
+                  fill="white"
+                  padding={4}
+                />
+              </Group>
+            );
+          })}
         </Layer>
       </Stage>
     </div>

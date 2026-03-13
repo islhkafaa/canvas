@@ -28,8 +28,11 @@ export function useWebSocket(roomId: string) {
         const data = JSON.parse(event.data) as ServerEvent;
 
         switch (data.type) {
+          case "connected":
+            store.applyConnected(data.userId);
+            break;
           case "init_room":
-            store.applyRemoteShapes(data.shapes);
+            store.applyRemoteRoomInit(data.shapes, data.peers);
             break;
           case "shape_added":
             store.applyRemoteShapeAdd(data.shape);
@@ -41,9 +44,13 @@ export function useWebSocket(roomId: string) {
             store.applyRemoteShapeDelete(data.id);
             break;
           case "peer_joined":
+            store.applyRemotePeerJoined(data.userId);
+            break;
           case "peer_left":
+            store.applyRemotePeerLeft(data.userId);
+            break;
           case "cursor_moved":
-          case "connected":
+            store.applyRemoteCursorMove(data.userId, data.x, data.y);
             break;
         }
       } catch (err) {

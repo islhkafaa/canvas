@@ -46,10 +46,18 @@ app.get(
 
         console.log(`[+] client ${userId} joined room "${roomId}"`);
 
-        raw.send(JSON.stringify({ type: "connected", roomId } as ServerEvent));
+        raw.send(
+          JSON.stringify({ type: "connected", roomId, userId } as ServerEvent),
+        );
 
         const shapes = roomShapes.get(roomId) || [];
-        raw.send(JSON.stringify({ type: "init_room", shapes } as ServerEvent));
+        const peers = Array.from(rooms.get(roomId) || [])
+          .filter((client) => client.data.userId !== userId)
+          .map((client) => client.data.userId);
+
+        raw.send(
+          JSON.stringify({ type: "init_room", shapes, peers } as ServerEvent),
+        );
 
         broadcast(roomId, { type: "peer_joined", userId }, raw);
       },

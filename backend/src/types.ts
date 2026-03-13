@@ -42,11 +42,11 @@ export type ClientEvent =
   | { type: "cursor_move"; x: number; y: number };
 
 export type ServerEvent =
-  | { type: "init_room"; shapes: Shape[] }
+  | { type: "init_room"; shapes: Shape[]; peers: string[] }
   | { type: "shape_added"; shape: Shape }
   | { type: "shape_updated"; id: string; data: Partial<Shape> }
   | { type: "shape_deleted"; id: string }
   | { type: "cursor_moved"; userId: string; x: number; y: number }
   | { type: "peer_joined"; userId: string }
   | { type: "peer_left"; userId: string }
-  | { type: "connected"; roomId: string };
+  | { type: "connected"; roomId: string; userId: string };

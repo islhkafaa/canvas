@@ -1,6 +1,7 @@
 import { CanvasStage } from "./components/canvas-stage";
 import { ConnectionBadge } from "./components/connection-badge";
 import { Toolbar } from "./components/tool-bar";
+import { UserPresence } from "./components/user-presence";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useCanvasStore } from "./store/useCanvasStore";
 
@@ -26,7 +27,10 @@ function App() {
           </div>
         </div>
 
-        <ConnectionBadge />
+        <div className="flex items-center gap-4">
+          <UserPresence />
+          <ConnectionBadge />
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
