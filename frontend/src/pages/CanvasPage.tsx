@@ -1,5 +1,5 @@
-import { Download, Layers } from "lucide-react";
-import { useEffect } from "react";
+import { Download, Layers, Link } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CanvasStage } from "../components/canvas-stage";
 import { ConnectionBadge } from "../components/connection-badge";
@@ -13,6 +13,7 @@ export function CanvasPage() {
   const navigate = useNavigate();
   const setRoomId = useCanvasStore((s) => s.setRoomId);
   const roomId = useCanvasStore((s) => s.roomId);
+  const [copyToast, setCopyToast] = useState(false);
 
   useEffect(() => {
     if (!roomParam) {
@@ -38,6 +39,12 @@ export function CanvasPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopyToast(true);
+    setTimeout(() => setCopyToast(false), 2000);
+  };
+
   return (
     <div className="canvas-app flex flex-col h-full w-full overflow-hidden bg-bg">
       <header className="h-12 shrink-0 flex items-center justify-between px-6 bg-surface border-b border-border/40 z-10">
@@ -53,10 +60,18 @@ export function CanvasPage() {
             </span>
           </button>
           <div className="h-4 w-px bg-border/60" />
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono font-semibold text-text-primary/90 bg-surface-raised px-3 py-1 rounded-sm border border-border/30 tracking-[0.05em]">
               {roomId}
             </span>
+            <button
+              onClick={handleCopyLink}
+              title="Copy room link"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-sm bg-surface-raised border border-border/30 text-[9px] font-bold tracking-widest text-text-secondary hover:text-text-primary hover:border-border/70 transition-all uppercase"
+            >
+              <Link size={9} />
+              {copyToast ? "Copied!" : "Copy"}
+            </button>
           </div>
         </div>
 

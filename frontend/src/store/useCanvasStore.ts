@@ -26,6 +26,7 @@ interface CanvasState {
   wsSend: ((event: ClientEvent) => void) | null;
   history: Shape[][];
   historyStep: number;
+  strokeColor: string;
 }
 
 const COLORS = [
@@ -55,6 +56,7 @@ interface CanvasActions {
   addShape: (shape: Shape) => void;
   updateShape: (id: string, data: Partial<Shape>) => void;
   removeShape: (id: string) => void;
+  clearShapes: () => void;
   broadcastCursor: (x: number, y: number) => void;
 
   applyConnected: (userId: string) => void;
@@ -73,6 +75,7 @@ interface CanvasActions {
   setIsDrawing: (isDrawing: boolean) => void;
   setSelectedShapeId: (id: string | null) => void;
   setStageConfig: (config: Partial<CanvasState["stageConfig"]>) => void;
+  setStrokeColor: (color: string) => void;
 }
 
 export const useCanvasStore = create<CanvasState & CanvasActions>()(
@@ -89,6 +92,7 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
     wsSend: null,
     history: [[]],
     historyStep: 0,
+    strokeColor: "#8b5cf6",
 
     setTool: (tool) =>
       set((state) => {
@@ -106,6 +110,11 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
     setRoomId: (id) =>
       set((state) => {
         state.roomId = id;
+        state.shapes = [];
+        state.peers = {};
+        state.history = [[]];
+        state.historyStep = 0;
+        state.selectedShapeId = null;
       }),
 
     initWs: (sendFn) =>
@@ -142,6 +151,16 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         }
       });
       get().wsSend?.({ type: "delete_shape", id });
+    },
+
+    clearShapes: () => {
+      set((state) => {
+        state.shapes = [];
+        state.selectedShapeId = null;
+        state.history = [[]];
+        state.historyStep = 0;
+      });
+      get().wsSend?.({ type: "clear_room" });
     },
 
     applyConnected: (userId) =>
@@ -216,6 +235,11 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
     setStageConfig: (config) =>
       set((state) => {
         state.stageConfig = { ...state.stageConfig, ...config };
+      }),
+
+    setStrokeColor: (color) =>
+      set((state) => {
+        state.strokeColor = color;
       }),
 
     saveHistory: () => {

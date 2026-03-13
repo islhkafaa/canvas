@@ -156,6 +156,10 @@ app.get(
                 raw,
               );
               break;
+            case "clear_room":
+              deleteRoomShapes.run(roomId);
+              broadcast(roomId, { type: "room_cleared" }, raw);
+              break;
             case "cursor_move":
               broadcast(
                 roomId,

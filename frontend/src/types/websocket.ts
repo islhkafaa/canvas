@@ -52,6 +52,7 @@ export type ClientEvent =
   | { type: "add_shape"; shape: Shape }
   | { type: "update_shape"; id: string; data: Partial<Shape> }
   | { type: "delete_shape"; id: string }
+  | { type: "clear_room" }
   | { type: "cursor_move"; x: number; y: number };
 
 export type ServerEvent =
@@ -59,6 +60,7 @@ export type ServerEvent =
   | { type: "shape_added"; shape: Shape }
   | { type: "shape_updated"; id: string; data: Partial<Shape> }
   | { type: "shape_deleted"; id: string }
+  | { type: "room_cleared" }
   | { type: "cursor_moved"; userId: string; x: number; y: number }
   | { type: "peer_joined"; userId: string }
   | { type: "peer_left"; userId: string }

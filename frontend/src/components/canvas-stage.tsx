@@ -27,6 +27,7 @@ export function CanvasStage() {
     isDrawing,
     selectedShapeId,
     stageConfig,
+    strokeColor,
     setIsDrawing,
     addShape,
     updateShape,
@@ -60,11 +61,17 @@ export function CanvasStage() {
       } else if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         e.preventDefault();
         redo();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        const { selectedShapeId: sid } = useCanvasStore.getState();
+        if (sid) {
+          saveHistory();
+          removeShape(sid);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, removeShape, saveHistory]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -138,7 +145,7 @@ export function CanvasStage() {
         y: 0,
         type: "pen",
         points: [pos.x, pos.y],
-        stroke: tool === "eraser" ? "eraser" : "#f8fafc",
+        stroke: tool === "eraser" ? "eraser" : strokeColor,
         strokeWidth: tool === "eraser" ? 20 : 3,
       });
     } else if (tool === "rect") {
@@ -147,7 +154,7 @@ export function CanvasStage() {
         type: "rect",
         width: 0,
         height: 0,
-        stroke: "#8b5cf6",
+        stroke: strokeColor,
       });
     } else if (tool === "ellipse") {
       addShape({
@@ -155,14 +162,14 @@ export function CanvasStage() {
         type: "ellipse",
         radiusX: 0,
         radiusY: 0,
-        stroke: "#8b5cf6",
+        stroke: strokeColor,
       });
     } else if (tool === "arrow") {
       addShape({
         ...baseShape,
         type: "arrow",
         points: [0, 0, 0, 0],
-        stroke: "#8b5cf6",
+        stroke: strokeColor,
         strokeWidth: 3,
       });
     } else if (tool === "text") {
