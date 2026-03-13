@@ -43,8 +43,11 @@ export function useWebSocket(roomId: string) {
           case "shape_deleted":
             store.applyRemoteShapeDelete(data.id);
             break;
+          case "reorder_shape":
+            store.applyRemoteReorderShape(data.id, data.direction);
+            break;
           case "room_cleared":
-            store.clearShapes();
+            store.applyRemoteClearShapes();
             break;
           case "peer_joined":
             store.applyRemotePeerJoined(data.userId);

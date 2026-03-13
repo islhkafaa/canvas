@@ -9,6 +9,7 @@ export type Tool =
   | "ellipse"
   | "arrow"
   | "text"
+  | "image"
   | "eraser"
   | "pan";
 export type ConnectionStatus = "disconnected" | "connecting" | "connected";
@@ -57,20 +58,32 @@ interface CanvasActions {
   updateShape: (id: string, data: Partial<Shape>) => void;
   removeShape: (id: string) => void;
   clearShapes: () => void;
+  reorderShape: (
+    id: string,
+    direction: "up" | "down" | "top" | "bottom",
+  ) => void;
   broadcastCursor: (x: number, y: number) => void;
 
   applyConnected: (userId: string) => void;
-  applyRemoteRoomInit: (shapes: Shape[], peers: string[]) => void;
+  applyRemoteRoomInit: (
+    shapes: Shape[],
+    peers: Record<string, { x: number; y: number }>,
+  ) => void;
   applyRemoteShapeAdd: (shape: Shape) => void;
+  applyRemoteShapeUpdate: (id: string, data: Partial<Shape>) => void;
+  applyRemoteShapeDelete: (id: string) => void;
+  applyRemoteReorderShape: (
+    id: string,
+    direction: "up" | "down" | "top" | "bottom",
+  ) => void;
+  applyRemoteClearShapes: () => void;
+  applyRemotePeerJoined: (userId: string) => void;
+  applyRemotePeerLeft: (userId: string) => void;
+  applyRemoteCursorMove: (userId: string, x: number, y: number) => void;
 
   saveHistory: () => void;
   undo: () => void;
   redo: () => void;
-  applyRemoteShapeUpdate: (id: string, data: Partial<Shape>) => void;
-  applyRemoteShapeDelete: (id: string) => void;
-  applyRemotePeerJoined: (userId: string) => void;
-  applyRemotePeerLeft: (userId: string) => void;
-  applyRemoteCursorMove: (userId: string, x: number, y: number) => void;
 
   setIsDrawing: (isDrawing: boolean) => void;
   setSelectedShapeId: (id: string | null) => void;
@@ -153,14 +166,78 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
       get().wsSend?.({ type: "delete_shape", id });
     },
 
+    reorderShape: (id, direction) => {
+      set((state) => {
+        const index = state.shapes.findIndex((s) => s.id === id);
+        if (index === -1) return;
+
+        const shape = state.shapes[index];
+        if (!shape) return;
+
+        state.shapes.splice(index, 1);
+
+        if (direction === "up") {
+          state.shapes.splice(
+            Math.min(index + 1, state.shapes.length),
+            0,
+            shape,
+          );
+        } else if (direction === "down") {
+          state.shapes.splice(Math.max(index - 1, 0), 0, shape);
+        } else if (direction === "top") {
+          state.shapes.push(shape);
+        } else if (direction === "bottom") {
+          state.shapes.unshift(shape);
+        }
+      });
+      get().wsSend?.({ type: "reorder_shape", id, direction } as any);
+    },
+
+    applyRemoteReorderShape: (id, direction) => {
+      set((state) => {
+        const index = state.shapes.findIndex((s) => s.id === id);
+        if (index === -1) return;
+
+        const shape = state.shapes[index];
+        if (!shape) return;
+
+        state.shapes.splice(index, 1);
+
+        if (direction === "up") {
+          state.shapes.splice(
+            Math.min(index + 1, state.shapes.length),
+            0,
+            shape,
+          );
+        } else if (direction === "down") {
+          state.shapes.splice(Math.max(index - 1, 0), 0, shape);
+        } else if (direction === "top") {
+          state.shapes.push(shape);
+        } else if (direction === "bottom") {
+          state.shapes.unshift(shape);
+        }
+      });
+    },
+
     clearShapes: () => {
       set((state) => {
         state.shapes = [];
         state.selectedShapeId = null;
         state.history = [[]];
         state.historyStep = 0;
+        state.isDrawing = false;
       });
       get().wsSend?.({ type: "clear_room" });
+    },
+
+    applyRemoteClearShapes: () => {
+      set((state) => {
+        state.shapes = [];
+        state.selectedShapeId = null;
+        state.history = [[]];
+        state.historyStep = 0;
+        state.isDrawing = false;
+      });
     },
 
     applyConnected: (userId) =>
@@ -172,10 +249,14 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
       set((state) => {
         state.shapes = shapes;
         state.peers = {};
-        for (const peerId of peers) {
-          state.peers[peerId] = { x: 0, y: 0, color: getRandomColor(peerId) };
+        for (const peerId of Object.keys(peers)) {
+          state.peers[peerId] = {
+            x: peers[peerId].x,
+            y: peers[peerId].y,
+            color: getRandomColor(peerId),
+          };
         }
-        state.history = [JSON.parse(JSON.stringify(shapes))];
+        state.history = [[...shapes]];
         state.historyStep = 0;
       }),
 
@@ -245,7 +326,7 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
     saveHistory: () => {
       set((state) => {
         const newHistory = state.history.slice(0, state.historyStep + 1);
-        newHistory.push(JSON.parse(JSON.stringify(state.shapes)));
+        newHistory.push([...state.shapes]);
         if (newHistory.length > 50) {
           newHistory.shift();
         } else {

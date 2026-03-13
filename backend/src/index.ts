@@ -19,15 +19,20 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS shapes (
     id   TEXT PRIMARY KEY,
     roomId TEXT NOT NULL,
-    data TEXT NOT NULL
+    data TEXT NOT NULL,
+    zIndex INTEGER DEFAULT 0
   );
 `);
 
+try {
+  db.exec("ALTER TABLE shapes ADD COLUMN zIndex INTEGER DEFAULT 0");
+} catch (e) {}
+
 const getShapes = db.prepare<{ data: string }, [string]>(
-  "SELECT data FROM shapes WHERE roomId = ?",
+  "SELECT data FROM shapes WHERE roomId = ? ORDER BY zIndex ASC",
 );
-const upsertShape = db.prepare<unknown, [string, string, string]>(
-  "INSERT OR REPLACE INTO shapes (id, roomId, data) VALUES (?, ?, ?)",
+const upsertShape = db.prepare<unknown, [string, string, string, string]>(
+  "INSERT OR REPLACE INTO shapes (id, roomId, data, zIndex) VALUES (?, ?, ?, (SELECT IFNULL(MAX(zIndex), 0) + 1 FROM shapes WHERE roomId = ?))",
 );
 const updateShapeData = db.prepare<unknown, [string, string]>(
   "UPDATE shapes SET data = ? WHERE id = ?",
@@ -43,6 +48,31 @@ const upsertRoom = db.prepare<unknown, [string]>(
 );
 const deleteRoom = db.prepare<unknown, [string]>(
   "DELETE FROM rooms WHERE id = ?",
+);
+
+const getShapeZIndex = db.prepare<{ zIndex: number }, [string]>(
+  "SELECT zIndex FROM shapes WHERE id = ?",
+);
+const updateShapeZIndex = db.prepare<unknown, [number, string]>(
+  "UPDATE shapes SET zIndex = ? WHERE id = ?",
+);
+const getNextShape = db.prepare<
+  { id: string; zIndex: number },
+  [string, number]
+>(
+  "SELECT id, zIndex FROM shapes WHERE roomId = ? AND zIndex > ? ORDER BY zIndex ASC LIMIT 1",
+);
+const getPrevShape = db.prepare<
+  { id: string; zIndex: number },
+  [string, number]
+>(
+  "SELECT id, zIndex FROM shapes WHERE roomId = ? AND zIndex < ? ORDER BY zIndex DESC LIMIT 1",
+);
+const getMaxZIndex = db.prepare<{ maxZ: number }, [string]>(
+  "SELECT MAX(zIndex) as maxZ FROM shapes WHERE roomId = ?",
+);
+const getMinZIndex = db.prepare<{ minZ: number }, [string]>(
+  "SELECT MIN(zIndex) as minZ FROM shapes WHERE roomId = ?",
 );
 
 const rooms = new Map<string, Set<ServerWebSocket<WsData>>>();
@@ -99,12 +129,20 @@ app.get(
         );
 
         const shapes = loadShapes(roomId);
-        const peers = Array.from(rooms.get(roomId) || [])
-          .filter((client) => client.data.userId !== userId)
-          .map((client) => client.data.userId);
+        const peersObj: Record<string, { x: number; y: number }> = {};
+
+        for (const client of Array.from(rooms.get(roomId) || [])) {
+          if (client.data.userId !== userId) {
+            peersObj[client.data.userId] = { x: 0, y: 0 };
+          }
+        }
 
         raw.send(
-          JSON.stringify({ type: "init_room", shapes, peers } as ServerEvent),
+          JSON.stringify({
+            type: "init_room",
+            shapes,
+            peers: peersObj,
+          } as ServerEvent),
         );
 
         broadcast(roomId, { type: "peer_joined", userId }, raw);
@@ -123,6 +161,7 @@ app.get(
                 clientEvent.shape.id,
                 roomId,
                 JSON.stringify(clientEvent.shape),
+                roomId,
               );
               broadcast(
                 roomId,
@@ -160,6 +199,40 @@ app.get(
               deleteRoomShapes.run(roomId);
               broadcast(roomId, { type: "room_cleared" }, raw);
               break;
+            case "reorder_shape": {
+              const { id, direction } = clientEvent;
+              const currentZ = getShapeZIndex.get(id)?.zIndex;
+              if (currentZ !== undefined) {
+                let neighbor: { id: string; zIndex: number } | null = null;
+                if (direction === "up") {
+                  neighbor = getNextShape.get(roomId, currentZ) || null;
+                } else if (direction === "down") {
+                  neighbor = getPrevShape.get(roomId, currentZ) || null;
+                } else if (direction === "top") {
+                  const maxZ = getMaxZIndex.get(roomId)?.maxZ || 0;
+                  updateShapeZIndex.run(maxZ + 1, id);
+                } else if (direction === "bottom") {
+                  const minZ = getMinZIndex.get(roomId)?.minZ || 0;
+                  updateShapeZIndex.run(minZ - 1, id);
+                }
+
+                if (neighbor) {
+                  updateShapeZIndex.run(neighbor.zIndex, id);
+                  updateShapeZIndex.run(currentZ, neighbor.id);
+                }
+              }
+
+              broadcast(
+                roomId,
+                {
+                  type: "reorder_shape",
+                  id: clientEvent.id,
+                  direction: clientEvent.direction,
+                } as any,
+                raw,
+              );
+              break;
+            }
             case "cursor_move":
               broadcast(
                 roomId,

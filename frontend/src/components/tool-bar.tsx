@@ -3,6 +3,7 @@ import {
   Circle,
   Eraser,
   Hand,
+  Image,
   MousePointer2,
   Pencil,
   Redo2,
@@ -12,6 +13,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useRef } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { useCanvasStore, type Tool } from "../store/useCanvasStore";
 
 interface ToolDef {
@@ -27,6 +29,7 @@ const tools: ToolDef[] = [
   { id: "ellipse", label: "Ellipse", icon: Circle },
   { id: "arrow", label: "Arrow", icon: ArrowUpRight },
   { id: "text", label: "Text", icon: Type },
+  { id: "image", label: "Image", icon: Image },
   { id: "eraser", label: "Eraser", icon: Eraser },
   { id: "pan", label: "Pan", icon: Hand },
 ];
@@ -53,6 +56,77 @@ export function Toolbar() {
       {tools.map((tool) => {
         const isActive = activeTool === tool.id;
         const Icon = tool.icon;
+
+        if (tool.id === "image") {
+          return (
+            <div key={tool.id} className="contents relative">
+              <button
+                title="Add Image"
+                onClick={() =>
+                  document.getElementById("image-upload-input")?.click()
+                }
+                className={`w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:bg-surface-raised bg-transparent text-text-secondary hover:text-text-primary`}
+              >
+                <Icon size={18} strokeWidth={1.75} />
+              </button>
+              <input
+                id="image-upload-input"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const dataUrl = ev.target?.result as string;
+                      const img = new window.Image();
+                      img.onload = () => {
+                        const maxWidth = 800;
+                        const maxHeight = 800;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth || height > maxHeight) {
+                          const ratio = Math.min(
+                            maxWidth / width,
+                            maxHeight / height,
+                          );
+                          width *= ratio;
+                          height *= ratio;
+                        }
+
+                        const { stageConfig, addShape, saveHistory } =
+                          useCanvasStore.getState();
+                        const centerX =
+                          (window.innerWidth / 2 - stageConfig.x) /
+                          stageConfig.scale;
+                        const centerY =
+                          (window.innerHeight / 2 - stageConfig.y) /
+                          stageConfig.scale;
+
+                        saveHistory();
+                        addShape({
+                          id: uuidv4(),
+                          type: "image",
+                          x: centerX - width / 2,
+                          y: centerY - height / 2,
+                          width,
+                          height,
+                          dataUrl,
+                        });
+                      };
+                      img.src = dataUrl;
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          );
+        }
+
         return (
           <div key={tool.id} className="contents">
             <button

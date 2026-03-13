@@ -1,20 +1,57 @@
 import Konva from "konva";
-import { useEffect, useRef, useState } from "react";
-import { Group, Layer, Path, Stage, Text, Transformer } from "react-konva";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Group,
+  Image as KonvaImage,
+  Layer,
+  Path,
+  Stage,
+  Text,
+  Transformer,
+} from "react-konva";
+import useImage from "use-image";
 import { v4 as uuidv4 } from "uuid";
 import { useCursorBroadcaster } from "../hooks/useCursorBroadcaster";
 import { useCanvasStore } from "../store/useCanvasStore";
+import type { Shape } from "../types/websocket";
 import { ArrowShape } from "./shapes/arrow-shape";
 import { EllipseShape } from "./shapes/ellipse-shape";
 import { PenShape } from "./shapes/pen-shape";
 import { RectShape } from "./shapes/rect-shape";
 import { TextShape } from "./shapes/text-shape";
 
+function ImageShapeComponent({
+  shape,
+  isSelected,
+  onSelect,
+}: {
+  shape: Extract<Shape, { type: "image" }>;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const [image] = useImage(shape.dataUrl);
+  return (
+    <KonvaImage
+      id={shape.id}
+      x={shape.x}
+      y={shape.y}
+      width={shape.width}
+      height={shape.height}
+      scaleX={shape.scaleX || 1}
+      scaleY={shape.scaleY || 1}
+      rotation={shape.rotation || 0}
+      image={image}
+      draggable={isSelected}
+      onClick={onSelect}
+      onTap={onSelect}
+    />
+  );
+}
+
 export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const transformerRef = useRef<Konva.Transformer>(null);
   const stageRef = useRef<Konva.Stage>(null);
-
+  const transformerRef = useRef<Konva.Transformer>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const emitCursor = useCursorBroadcaster();
@@ -32,6 +69,7 @@ export function CanvasStage() {
     addShape,
     updateShape,
     removeShape,
+    reorderShape,
     setSelectedShapeId,
     setStageConfig,
     saveHistory,
@@ -67,11 +105,23 @@ export function CanvasStage() {
           saveHistory();
           removeShape(sid);
         }
+      } else if (e.key === "[") {
+        const { selectedShapeId: sid } = useCanvasStore.getState();
+        if (sid) {
+          saveHistory();
+          reorderShape(sid, "down");
+        }
+      } else if (e.key === "]") {
+        const { selectedShapeId: sid } = useCanvasStore.getState();
+        if (sid) {
+          saveHistory();
+          reorderShape(sid, "up");
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo, removeShape, saveHistory]);
+  }, [undo, redo, removeShape, saveHistory, reorderShape]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -92,16 +142,18 @@ export function CanvasStage() {
   }, []);
 
   useEffect(() => {
-    if (selectedShapeId && transformerRef.current && stageRef.current) {
-      const selectedNode = stageRef.current.findOne(`#${selectedShapeId}`);
+    if (selectedShapeId && transformerRef.current) {
+      const selectedNode = stageRef.current?.findOne("#" + selectedShapeId);
       if (selectedNode) {
         transformerRef.current.nodes([selectedNode]);
         transformerRef.current.getLayer()?.batchDraw();
+      } else {
+        transformerRef.current.nodes([]);
       }
     } else if (transformerRef.current) {
       transformerRef.current.nodes([]);
     }
-  }, [selectedShapeId, shapes]);
+  }, [selectedShapeId]);
 
   const getPointerPos = () => {
     const stage = stageRef.current;
@@ -281,10 +333,62 @@ export function CanvasStage() {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    stage.setPointersPositions(e);
+    const pos = getPointerPos();
+    if (!pos) return;
+
+    if (e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          const img = new Image();
+          img.onload = () => {
+            const maxWidth = 800;
+            const maxHeight = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth || height > maxHeight) {
+              const ratio = Math.min(maxWidth / width, maxHeight / height);
+              width *= ratio;
+              height *= ratio;
+            }
+
+            saveHistory();
+            addShape({
+              id: uuidv4(),
+              type: "image",
+              x: pos.x - width / 2,
+              y: pos.y - height / 2,
+              width,
+              height,
+              dataUrl,
+            });
+          };
+          img.src = dataUrl;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
   return (
     <div
       ref={containerRef}
       className={`canvas-stage flex-1 overflow-hidden bg-bg canvas-grid relative ${getCursorClass()}`}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <Stage
         ref={stageRef}
@@ -376,6 +480,15 @@ export function CanvasStage() {
                       if (tool === "select" || tool === "text")
                         setEditingTextId(shape.id);
                     }}
+                  />
+                );
+              case "image":
+                return (
+                  <ImageShapeComponent
+                    key={shape.id}
+                    shape={shape}
+                    isSelected={isSelected}
+                    onSelect={onSelect}
                   />
                 );
               default:
