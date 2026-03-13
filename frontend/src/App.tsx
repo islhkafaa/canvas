@@ -1,3 +1,4 @@
+import { Layers } from "lucide-react";
 import { CanvasStage } from "./components/canvas-stage";
 import { ConnectionBadge } from "./components/connection-badge";
 import { Toolbar } from "./components/tool-bar";
@@ -14,7 +15,7 @@ function App() {
       <header className="h-12 shrink-0 flex items-center justify-between px-6 bg-surface border-b border-border/40 z-10">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2.5 group">
-            <div className="w-5 h-5 rounded-sm bg-accent shrink-0 transition-transform duration-300 group-hover:scale-105" />
+            <Layers className="w-5 h-5 text-accent shrink-0 transition-transform duration-300 group-hover:scale-105" />
             <span className="font-semibold text-[13px] uppercase tracking-[0.12em] text-text-primary">
               Canvas
             </span>

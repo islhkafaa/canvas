@@ -1,4 +1,4 @@
-import { useCanvasStore } from "../store/useCanvasStore";
+import { getRandomColor, useCanvasStore } from "../store/useCanvasStore";
 
 export function UserPresence() {
   const { peers, myUserId } = useCanvasStore();
@@ -24,7 +24,7 @@ export function UserPresence() {
         {myUserId && (
           <div
             className="w-8 h-8 rounded-full border-2 border-surface flex items-center justify-center text-xs font-bold text-white relative z-10"
-            style={{ backgroundColor: "#4b5563" }}
+            style={{ backgroundColor: getRandomColor(myUserId) }}
             title="You"
           >
             {myUserId.substring(0, 2).toUpperCase()}
