@@ -24,6 +24,8 @@ interface CanvasState {
   selectedShapeId: string | null;
   stageConfig: { x: number; y: number; scale: number };
   wsSend: ((event: ClientEvent) => void) | null;
+  history: Shape[][];
+  historyStep: number;
 }
 
 const COLORS = [
@@ -58,6 +60,10 @@ interface CanvasActions {
   applyConnected: (userId: string) => void;
   applyRemoteRoomInit: (shapes: Shape[], peers: string[]) => void;
   applyRemoteShapeAdd: (shape: Shape) => void;
+
+  saveHistory: () => void;
+  undo: () => void;
+  redo: () => void;
   applyRemoteShapeUpdate: (id: string, data: Partial<Shape>) => void;
   applyRemoteShapeDelete: (id: string) => void;
   applyRemotePeerJoined: (userId: string) => void;
@@ -81,6 +87,8 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
     selectedShapeId: null,
     stageConfig: { x: 0, y: 0, scale: 1 },
     wsSend: null,
+    history: [[]],
+    historyStep: 0,
 
     setTool: (tool) =>
       set((state) => {
@@ -148,6 +156,8 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
         for (const peerId of peers) {
           state.peers[peerId] = { x: 0, y: 0, color: getRandomColor(peerId) };
         }
+        state.history = [JSON.parse(JSON.stringify(shapes))];
+        state.historyStep = 0;
       }),
 
     applyRemoteShapeAdd: (shape) =>
@@ -207,5 +217,86 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
       set((state) => {
         state.stageConfig = { ...state.stageConfig, ...config };
       }),
+
+    saveHistory: () => {
+      set((state) => {
+        const newHistory = state.history.slice(0, state.historyStep + 1);
+        newHistory.push(JSON.parse(JSON.stringify(state.shapes)));
+        if (newHistory.length > 50) {
+          newHistory.shift();
+        } else {
+          state.historyStep += 1;
+        }
+        state.history = newHistory;
+      });
+    },
+
+    undo: () => {
+      const state = get();
+      if (state.historyStep <= 0) return;
+
+      const previousShapes = state.history[state.historyStep - 1];
+      const currentShapes = state.shapes;
+
+      const previousMap = new Map(previousShapes.map((s) => [s.id, s]));
+      const currentMap = new Map(currentShapes.map((s) => [s.id, s]));
+
+      for (const id of currentMap.keys()) {
+        if (!previousMap.has(id)) {
+          state.wsSend?.({ type: "delete_shape", id });
+        }
+      }
+
+      for (const [id, prevShape] of previousMap.entries()) {
+        if (!currentMap.has(id)) {
+          state.wsSend?.({ type: "add_shape", shape: prevShape });
+        } else {
+          const curShape = currentMap.get(id);
+          if (JSON.stringify(prevShape) !== JSON.stringify(curShape)) {
+            state.wsSend?.({ type: "update_shape", id, data: prevShape });
+          }
+        }
+      }
+
+      set((s) => {
+        s.historyStep -= 1;
+        s.shapes = JSON.parse(JSON.stringify(previousShapes));
+        s.selectedShapeId = null;
+      });
+    },
+
+    redo: () => {
+      const state = get();
+      if (state.historyStep >= state.history.length - 1) return;
+
+      const nextShapes = state.history[state.historyStep + 1];
+      const currentShapes = state.shapes;
+
+      const nextMap = new Map(nextShapes.map((s) => [s.id, s]));
+      const currentMap = new Map(currentShapes.map((s) => [s.id, s]));
+
+      for (const id of currentMap.keys()) {
+        if (!nextMap.has(id)) {
+          state.wsSend?.({ type: "delete_shape", id });
+        }
+      }
+
+      for (const [id, nShape] of nextMap.entries()) {
+        if (!currentMap.has(id)) {
+          state.wsSend?.({ type: "add_shape", shape: nShape });
+        } else {
+          const curShape = currentMap.get(id);
+          if (JSON.stringify(nShape) !== JSON.stringify(curShape)) {
+            state.wsSend?.({ type: "update_shape", id, data: nShape });
+          }
+        }
+      }
+
+      set((s) => {
+        s.historyStep += 1;
+        s.shapes = JSON.parse(JSON.stringify(nextShapes));
+        s.selectedShapeId = null;
+      });
+    },
   })),
 );

@@ -4,9 +4,11 @@ import { Group, Layer, Path, Stage, Text, Transformer } from "react-konva";
 import { v4 as uuidv4 } from "uuid";
 import { useCursorBroadcaster } from "../hooks/useCursorBroadcaster";
 import { useCanvasStore } from "../store/useCanvasStore";
+import { ArrowShape } from "./shapes/arrow-shape";
 import { EllipseShape } from "./shapes/ellipse-shape";
 import { PenShape } from "./shapes/pen-shape";
 import { RectShape } from "./shapes/rect-shape";
+import { TextShape } from "./shapes/text-shape";
 
 export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -14,6 +16,7 @@ export function CanvasStage() {
   const stageRef = useRef<Konva.Stage>(null);
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const emitCursor = useCursorBroadcaster();
 
   const {
@@ -27,9 +30,41 @@ export function CanvasStage() {
     setIsDrawing,
     addShape,
     updateShape,
+    removeShape,
     setSelectedShapeId,
     setStageConfig,
+    saveHistory,
+    undo,
+    redo,
   } = useCanvasStore();
+
+  const editingTextShape = editingTextId
+    ? (shapes.find((s) => s.id === editingTextId && s.type === "text") as any)
+    : null;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "TEXTAREA" ||
+        document.activeElement?.tagName === "INPUT"
+      )
+        return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -88,6 +123,7 @@ export function CanvasStage() {
     if (!pos) return;
 
     setIsDrawing(true);
+    saveHistory();
 
     const baseShape = {
       id: uuidv4(),
@@ -121,6 +157,28 @@ export function CanvasStage() {
         radiusY: 0,
         stroke: "#8b5cf6",
       });
+    } else if (tool === "arrow") {
+      addShape({
+        ...baseShape,
+        type: "arrow",
+        points: [0, 0, 0, 0],
+        stroke: "#8b5cf6",
+        strokeWidth: 3,
+      });
+    } else if (tool === "text") {
+      const id = uuidv4();
+      addShape({
+        id,
+        x: pos.x,
+        y: pos.y,
+        type: "text",
+        text: "",
+        fontSize: 24,
+        fontFamily: "Inter, sans-serif",
+        fill: "#f8fafc",
+      });
+      setIsDrawing(false);
+      setTimeout(() => setEditingTextId(id), 0);
     }
   };
 
@@ -156,6 +214,12 @@ export function CanvasStage() {
         updateShape(lastShape.id, {
           radiusX: Math.abs(pos.x - lastShape.x),
           radiusY: Math.abs(pos.y - lastShape.y),
+        });
+      }
+    } else if (tool === "arrow") {
+      if (lastShape.type === "arrow") {
+        updateShape(lastShape.id, {
+          points: [0, 0, pos.x - lastShape.x, pos.y - lastShape.y],
         });
       }
     }
@@ -199,6 +263,7 @@ export function CanvasStage() {
       case "text":
         return "cursor-text";
       case "pen":
+      case "arrow":
       case "rect":
       case "ellipse":
         return "cursor-[url('https://api.iconify.design/lucide:pencil.svg?color=white&width=24&height=24')_0_24,_auto]";
@@ -227,6 +292,9 @@ export function CanvasStage() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onWheel={handleWheel}
+        onDragStart={() => {
+          if (tool !== "pan") saveHistory();
+        }}
         onDragEnd={(e) => {
           if (tool === "pan") {
             setStageConfig({ x: e.target.x(), y: e.target.y() });
@@ -234,6 +302,7 @@ export function CanvasStage() {
             updateShape(e.target.id(), { x: e.target.x(), y: e.target.y() });
           }
         }}
+        onTransformStart={() => saveHistory()}
         onTransformEnd={(e) => {
           const node = e.target;
           updateShape(node.id(), {
@@ -280,6 +349,28 @@ export function CanvasStage() {
                     onSelect={onSelect}
                   />
                 );
+              case "arrow":
+                return (
+                  <ArrowShape
+                    key={shape.id}
+                    shape={shape}
+                    isSelected={isSelected}
+                    onSelect={onSelect}
+                  />
+                );
+              case "text":
+                return (
+                  <TextShape
+                    key={shape.id}
+                    shape={shape}
+                    isSelected={isSelected}
+                    onSelect={onSelect}
+                    onDoubleClick={() => {
+                      if (tool === "select" || tool === "text")
+                        setEditingTextId(shape.id);
+                    }}
+                  />
+                );
               default:
                 return null;
             }
@@ -324,6 +415,45 @@ export function CanvasStage() {
           })}
         </Layer>
       </Stage>
+
+      {editingTextShape && (
+        <textarea
+          autoFocus
+          className="absolute z-50 bg-transparent border-none outline-none resize-none leading-none overflow-hidden whitespace-pre"
+          style={{
+            left: editingTextShape.x * stageConfig.scale + stageConfig.x,
+            top: editingTextShape.y * stageConfig.scale + stageConfig.y,
+            fontSize: editingTextShape.fontSize * stageConfig.scale,
+            color: editingTextShape.fill,
+            fontFamily: editingTextShape.fontFamily,
+            transform: `rotate(${editingTextShape.rotation || 0}deg) scale(${editingTextShape.scaleX || 1}, ${editingTextShape.scaleY || 1})`,
+            transformOrigin: "top left",
+            minWidth: "100px",
+            minHeight: "1em",
+          }}
+          defaultValue={editingTextShape.text}
+          onBlur={(e) => {
+            const newText = e.target.value.trim();
+            if (newText === "" && editingTextShape.text === "") {
+              removeShape(editingTextShape.id);
+            } else {
+              saveHistory();
+              updateShape(editingTextShape.id, { text: e.target.value });
+            }
+            setEditingTextId(null);
+          }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+            if (e.key === "Escape") {
+              setEditingTextId(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

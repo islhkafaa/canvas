@@ -33,7 +33,20 @@ export interface ArrowShape extends BaseShape {
   points: number[];
 }
 
-export type Shape = PenShape | RectShape | EllipseShape | ArrowShape;
+export interface TextShape extends BaseShape {
+  type: "text";
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fill: string;
+}
+
+export type Shape =
+  | PenShape
+  | RectShape
+  | EllipseShape
+  | ArrowShape
+  | TextShape;
 
 export type ClientEvent =
   | { type: "add_shape"; shape: Shape }
