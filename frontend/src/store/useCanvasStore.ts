@@ -62,6 +62,8 @@ interface CanvasActions {
     id: string,
     direction: "up" | "down" | "top" | "bottom",
   ) => void;
+  toggleLock: (id: string) => void;
+  toggleVisibility: (id: string) => void;
   broadcastCursor: (x: number, y: number) => void;
 
   applyConnected: (userId: string) => void;
@@ -134,6 +136,20 @@ export const useCanvasStore = create<CanvasState & CanvasActions>()(
       set((state) => {
         state.wsSend = sendFn as any;
       }),
+
+    toggleLock: (id) => {
+      const shape = get().shapes.find((s) => s.id === id);
+      if (shape) {
+        get().updateShape(id, { isLocked: !shape.isLocked });
+      }
+    },
+
+    toggleVisibility: (id) => {
+      const shape = get().shapes.find((s) => s.id === id);
+      if (shape) {
+        get().updateShape(id, { isVisible: shape.isVisible === false });
+      }
+    },
 
     broadcastCursor: (x, y) => {
       get().wsSend?.({ type: "cursor_move", x, y });

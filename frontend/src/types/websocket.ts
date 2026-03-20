@@ -9,6 +9,8 @@ export interface BaseShape {
   stroke?: string;
   strokeWidth?: number;
   zIndex?: number;
+  isLocked?: boolean;
+  isVisible?: boolean;
 }
 
 export interface PenShape extends BaseShape {

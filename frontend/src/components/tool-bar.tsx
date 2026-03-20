@@ -51,7 +51,6 @@ export function Toolbar() {
 
   return (
     <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 z-40">
-      {/* Tool Group */}
       <div className="glass-panel p-1.5 rounded-2xl flex flex-col gap-1">
         {tools.map((tool) => {
           const isActive = activeTool === tool.id;
@@ -164,7 +163,6 @@ export function Toolbar() {
         </button>
       </div>
 
-      {/* History & Action Group */}
       <div className="glass-panel p-1.5 rounded-2xl flex flex-col gap-1">
         <button
           onClick={undo}

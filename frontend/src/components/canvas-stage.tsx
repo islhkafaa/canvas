@@ -1,12 +1,9 @@
 import Konva from "konva";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Group,
   Image as KonvaImage,
   Layer,
-  Path,
   Stage,
-  Text,
   Transformer,
 } from "react-konva";
 import useImage from "use-image";
@@ -14,6 +11,8 @@ import { v4 as uuidv4 } from "uuid";
 import { useCursorBroadcaster } from "../hooks/useCursorBroadcaster";
 import { useCanvasStore } from "../store/useCanvasStore";
 import type { Shape } from "../types/websocket";
+import { ContextMenu } from "./context-menu";
+import { RemoteCursor } from "./remote-cursor";
 import { ArrowShape } from "./shapes/arrow-shape";
 import { EllipseShape } from "./shapes/ellipse-shape";
 import { PenShape } from "./shapes/pen-shape";
@@ -54,6 +53,7 @@ export function CanvasStage() {
   const transformerRef = useRef<Konva.Transformer>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const emitCursor = useCursorBroadcaster();
 
   const {
@@ -389,7 +389,18 @@ export function CanvasStage() {
       className={`canvas-stage flex-1 overflow-hidden bg-bg canvas-grid relative ${getCursorClass()}`}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY });
+      }}
     >
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
       <Stage
         ref={stageRef}
         width={dimensions.width}
@@ -426,11 +437,15 @@ export function CanvasStage() {
         }}
       >
         <Layer>
-          {shapes.map((shape) => {
-            const isSelected = shape.id === selectedShapeId;
-            const onSelect = () => {
-              if (tool === "select") setSelectedShapeId(shape.id);
-            };
+          {shapes
+            .filter((s) => s.isVisible !== false)
+            .map((shape) => {
+              const isSelected = shape.id === selectedShapeId;
+              const onSelect = () => {
+                if (tool === "select" && !shape.isLocked) {
+                  setSelectedShapeId(shape.id);
+                }
+              };
 
             switch (shape.type) {
               case "pen":
@@ -514,23 +529,13 @@ export function CanvasStage() {
           {Object.entries(peers).map(([peerId, cursor]) => {
             if (peerId === myUserId) return null;
             return (
-              <Group key={peerId} x={cursor.x} y={cursor.y}>
-                <Path
-                  data="M5.65376 17.9088L2.09104 2.11542C1.72895 0.50974 3.49023 -0.627768 4.8876 0.311749L17.5147 8.80214C18.914 9.74314 18.6654 11.8906 17.078 12.4214L11.751 14.2023C11.396 14.321 11.109 14.5807 10.9658 14.9198L8.43163 20.925C7.8188 22.3789 5.82024 22.0163 5.37813 18.9472L5.65376 17.9088Z"
-                  fill={cursor.color}
-                  stroke="white"
-                  strokeWidth={1}
-                />
-                <Text
-                  text={peerId.split("-")[0]}
-                  x={12}
-                  y={20}
-                  fontSize={12}
-                  fontFamily="monospace"
-                  fill="white"
-                  padding={4}
-                />
-              </Group>
+              <RemoteCursor
+                key={peerId}
+                id={peerId}
+                x={cursor.x}
+                y={cursor.y}
+                color={cursor.color}
+              />
             );
           })}
         </Layer>

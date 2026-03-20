@@ -19,12 +19,10 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen w-full bg-bg flex items-center justify-center relative overflow-hidden font-sans">
-      {/* Background Atmosphere - Simplified */}
       <div className="absolute inset-0 canvas-grid opacity-[0.1]" />
       <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-accent/5 rounded-full pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-lg mx-auto px-6 flex flex-col items-center">
-        {/* Logo Section */}
         <div className="flex flex-col items-center mb-16 space-y-4">
           <div className="w-16 h-16 rounded-2xl glass-panel flex items-center justify-center group transition-all duration-300 hover:scale-105">
             <Layers className="w-8 h-8 text-accent transition-transform duration-500 group-hover:rotate-12" />
@@ -39,7 +37,6 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Join Card */}
         <div className="w-full glass-panel p-8 rounded-3xl transition-all duration-300">
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-text-primary mb-2 font-display">
