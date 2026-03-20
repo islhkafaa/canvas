@@ -18,69 +18,80 @@ export function HomePage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-bg flex items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0 canvas-grid opacity-40" />
+    <div className="min-h-screen w-full bg-bg flex items-center justify-center relative overflow-hidden font-sans">
+      {/* Background Atmosphere - Simplified */}
+      <div className="absolute inset-0 canvas-grid opacity-[0.1]" />
+      <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-accent/5 rounded-full pointer-events-none" />
 
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/8 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="relative z-10 w-full max-w-md mx-4">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
-            <Layers className="w-5 h-5 text-accent" />
+      <div className="relative z-10 w-full max-w-lg mx-auto px-6 flex flex-col items-center">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center mb-16 space-y-4">
+          <div className="w-16 h-16 rounded-2xl glass-panel flex items-center justify-center group transition-all duration-300 hover:scale-105">
+            <Layers className="w-8 h-8 text-accent transition-transform duration-500 group-hover:rotate-12" />
           </div>
-          <div>
-            <div className="font-semibold text-base uppercase tracking-[0.14em] text-text-primary leading-none">
-              Canvas
-            </div>
-            <div className="text-[11px] text-text-secondary tracking-wide mt-0.5">
-              Real-time collaborative whiteboard
-            </div>
+          <div className="text-center">
+            <h1 className="font-display text-4xl font-bold tracking-tight text-text-primary mb-2">
+              Canvas<span className="text-accent">.</span>
+            </h1>
+            <p className="text-sm text-text-secondary tracking-widest uppercase font-medium">
+              Creative Collaborative Studio
+            </p>
           </div>
         </div>
 
-        <div className="bg-surface border border-border/60 rounded-xl p-6 shadow-2xl">
-          <h1 className="text-lg font-semibold text-text-primary mb-1">
-            Start collaborating
-          </h1>
-          <p className="text-[13px] text-text-secondary mb-6">
-            Enter a room name to create or join an existing session.
-          </p>
+        {/* Join Card */}
+        <div className="w-full glass-panel p-8 rounded-3xl transition-all duration-300">
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-text-primary mb-2 font-display">
+              Initialize Session
+            </h2>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Enter a room name to begin your collaborative journey.
+            </p>
+          </div>
 
-          <label className="block text-[11px] font-semibold text-text-secondary uppercase tracking-widest mb-2">
-            Room Name
-          </label>
-          <div className="flex gap-2 mb-4">
-            <input
-              type="text"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && join()}
-              placeholder="e.g. design-sprint"
-              spellCheck={false}
-              className="flex-1 bg-surface-raised border border-border/60 rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/50 outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/20 transition-all"
-            />
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="block text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] ml-1">
+                Room Identifier
+              </label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && join()}
+                    placeholder="e.g. design-sprint"
+                    spellCheck={false}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-text-primary placeholder:text-text-secondary/30 outline-none focus:border-accent/50 focus:bg-white/[0.08] transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => setRoomId(generateRoomId())}
+                  title="Generate random room ID"
+                  className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-white/10 transition-all active:scale-95"
+                >
+                  <Shuffle size={18} />
+                </button>
+              </div>
+            </div>
+
             <button
-              onClick={() => setRoomId(generateRoomId())}
-              title="Generate random room ID"
-              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-surface-raised border border-border/60 text-text-secondary hover:text-text-primary hover:border-border transition-all"
+              onClick={join}
+              disabled={!roomId.trim()}
+              className="group relative w-full overflow-hidden rounded-xl bg-accent px-6 py-4 text-sm font-bold text-bg transition-all hover:bg-accent/90 disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98]"
             >
-              <Shuffle size={15} />
+              <div className="flex items-center justify-center gap-2 relative z-10">
+                Enter Studio
+                <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
+              </div>
             </button>
           </div>
-
-          <button
-            onClick={join}
-            disabled={!roomId.trim()}
-            className="w-full flex items-center justify-center gap-2.5 bg-accent hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm py-2.5 rounded-lg transition-all duration-200 shadow-lg shadow-accent/20"
-          >
-            Join Room
-            <ArrowRight size={16} />
-          </button>
         </div>
 
-        <p className="text-center text-[11px] text-text-secondary/50 mt-6">
-          Rooms are created automatically on first join.
+        <p className="mt-8 text-[11px] text-text-secondary/40 font-medium tracking-wide uppercase">
+          Real-time sync • End-to-end creative flow
         </p>
       </div>
     </div>

@@ -12,18 +12,18 @@ export function UserPresence() {
 
   if (totalUsers <= 1) {
     return (
-      <div className="flex items-center text-xs text-text-muted font-medium mr-4">
-        Only you here
+      <div className="flex items-center text-[10px] font-bold text-text-secondary uppercase tracking-widest px-1">
+        Solo Session
       </div>
     );
   }
 
   return (
-    <div className="flex items-center mr-4">
-      <div className="flex -space-x-2 mr-3">
+    <div className="flex items-center">
+      <div className="flex -space-x-1.5">
         {myUserId && (
           <div
-            className="w-8 h-8 rounded-full border-2 border-surface flex items-center justify-center text-xs font-bold text-white relative z-10"
+            className="w-7 h-7 rounded-lg border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white relative z-20 group cursor-default transition-transform hover:scale-110"
             style={{ backgroundColor: getRandomColor(myUserId) }}
             title="You"
           >
@@ -34,7 +34,7 @@ export function UserPresence() {
         {visibleUsers.map(([id, data], i) => (
           <div
             key={id}
-            className="w-8 h-8 rounded-full border-2 border-surface flex items-center justify-center text-xs font-bold text-white relative"
+            className="w-7 h-7 rounded-lg border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white relative transition-transform hover:scale-110"
             style={{
               backgroundColor: data.color,
               zIndex: 10 - i,
@@ -47,16 +47,15 @@ export function UserPresence() {
 
         {extraCount > 0 && (
           <div
-            className="w-8 h-8 rounded-full border-2 border-surface flex items-center justify-center text-xs font-bold text-white relative bg-surface-raised"
-            style={{ zIndex: 0 }}
+            className="w-7 h-7 rounded-lg border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-text-secondary bg-zinc-800 relative z-0"
           >
             +{extraCount}
           </div>
         )}
       </div>
 
-      <div className="text-xs text-text-primary font-medium">
-        {totalUsers} Active
+      <div className="ml-3 text-[10px] font-bold text-text-primary uppercase tracking-tight">
+        {totalUsers} <span className="text-text-secondary font-medium">Team</span>
       </div>
     </div>
   );

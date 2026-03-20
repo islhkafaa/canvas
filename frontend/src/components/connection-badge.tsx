@@ -1,32 +1,33 @@
-import { Globe } from "lucide-react";
 import { useCanvasStore } from "../store/useCanvasStore";
 
 const config = {
   connected: {
-    label: "Connected",
+    label: "Live",
     className: "bg-success",
-    iconColor: "text-success",
+    dotClass: "bg-success",
   },
   connecting: {
-    label: "Connecting...",
+    label: "Syncing",
     className: "bg-warning",
-    iconColor: "text-warning",
+    dotClass: "bg-warning animate-pulse",
   },
   disconnected: {
-    label: "Disconnected",
+    label: "Offline",
     className: "bg-error",
-    iconColor: "text-error",
+    dotClass: "bg-error",
   },
 };
 
 export function ConnectionBadge() {
   const status = useCanvasStore((s) => s.connectionStatus);
-  const { label, iconColor } = config[status];
+  const { label, dotClass } = config[status];
 
   return (
-    <div className="connection-badge flex items-center gap-2 px-3 py-1.5 bg-surface-raised border border-border/40 rounded-sm text-[9px] font-bold tracking-widest transition-all duration-300 leading-none">
-      <Globe size={10} className={iconColor} />
-      <span className={`uppercase pt-px ${iconColor}`}>{label}</span>
+    <div className="flex items-center gap-2 px-1 transition-all duration-500">
+      <div className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+      <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.15em]">
+        {label}
+      </span>
     </div>
   );
 }
